@@ -1,0 +1,19 @@
+# Infraestructura del TPI. Por ahora solo Keycloak (Identity Provider).
+# Más adelante se agregan: PostgreSQL, API Gateway y los microservicios (despliegue integral).
+#
+#   docker compose up -d          # levanta Keycloak en http://localhost:8180
+#   docker compose logs -f keycloak
+#
+# Consola de administración: http://localhost:8180  (admin / admin)
+# El realm "turismo" se importa solo la primera vez desde ./keycloak/turismo-realm.json
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm        # start-dev: modo desarrollo (HTTP, base H2 interna)
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin     # administrador de la consola de Keycloak
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"                          # 8180 en tu máquina; el 8080 queda libre para el API Gateway
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro   # carpeta con el realm a importar
