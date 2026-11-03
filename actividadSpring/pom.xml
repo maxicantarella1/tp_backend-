@@ -68,10 +68,15 @@
 			<version>3.1.0</version>
 		</dependency>
 
-		<!-- Base de datos en memoria para desarrollo y tests (luego PostgreSQL) -->
+		<!-- Base de datos en memoria para desarrollo y tests; PostgreSQL para el despliegue en Docker -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
 

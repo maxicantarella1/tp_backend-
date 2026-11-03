@@ -1,14 +1,15 @@
 package com.Reservas.config;
 
-import com.Reservas.service.ReservaService;
 import com.Reservas.service.TokenServicio;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Clock;
+import java.time.Duration;
 
 /**
  * Clientes HTTP de este servicio: uno hacia Actividades (otro microservicio) y tres hacia APIs
@@ -22,15 +23,13 @@ public class ClientesConfig {
     /**
      * Cliente hacia Actividades: a cada petición se le agrega "Authorization: Bearer <token de servicio>".
      * El interceptor se ejecuta justo antes de enviar; así ReservaService no se ocupa de la seguridad.
+     * Usa JdkClientHttpRequestFactory (HttpClient de Java 17) porque soporta el método HTTP PATCH.
      */
     @Bean
     RestClient actividadesClient(@Value("${actividades.url}") String url, TokenServicio tokens) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(2000);
-        factory.setReadTimeout(3000);
         return RestClient.builder()
                 .baseUrl(url)
-                .requestFactory(factory)
+                .requestFactory(crearFactoryConTimeout())
                 .requestInterceptor((request, body, execution) -> {
                     request.getHeaders().setBearerAuth(tokens.token());
                     return execution.execute(request, body);
@@ -52,9 +51,15 @@ public class ClientesConfig {
     Clock reloj() { return Clock.systemDefaultZone(); }
 
     private RestClient cliente(String url) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(2000);  // ms para conectar
-        factory.setReadTimeout(3000);     // ms para recibir la respuesta
-        return RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        return RestClient.builder().baseUrl(url).requestFactory(crearFactoryConTimeout()).build();
+    }
+
+    private JdkClientHttpRequestFactory crearFactoryConTimeout() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(2000)) // ms para conectar
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofMillis(3000)); // ms para recibir la respuesta
+        return factory;
     }
 }

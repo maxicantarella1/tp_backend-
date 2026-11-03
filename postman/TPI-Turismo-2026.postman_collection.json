@@ -1,0 +1,1192 @@
+{
+  "info": {
+    "_postman_id": "b8f92e14-7c4a-4d3b-9e12-5a6b7c8d9e01",
+    "name": "TPI Backend 2026 - Dominio 5 (Turismo y Excursiones)",
+    "description": "Coleccion oficial de pruebas funcionales y de seguridad del TPI Backend 2026 (Grupo 117).\n\nRecorre todas las solicitudes a traves del API Gateway (http://localhost:8080) e incluye aserciones automaticas (Tests) y guardado automatico de tokens e IDs.\n\nOrden de ejecucion recomendado:\n1. Carpeta 1: Ejecutar los 5 logins contra Keycloak (guardan los tokens automaticamente).\n2. Carpeta 2: Consultar catalogo precargado y probar alta con geocodificacion.\n3. Carpeta 3: Ejecutar el flujo central de reservas (evaluacion climatica en vivo, reserva bajo techo confirmada, reserva lejana pendiente y recargo por feriado).\n4. Carpeta 4: Verificar rechazos de reglas de negocio (400, 404, 409).\n5. Carpeta 5: Verificar controles de seguridad, roles y propiedad (401, 403).\n6. Carpeta 6: Probar reprogramacion, reevaluacion y cancelacion con devolucion de cupo y reintegro.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1172026"
+  },
+  "variable": [
+    { "key": "gatewayUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "keycloakUrl", "value": "http://localhost:8180", "type": "string" },
+    { "key": "fechaCercana", "value": "2026-11-06", "type": "string" },
+    { "key": "fechaReprogramada", "value": "2026-11-08", "type": "string" },
+    { "key": "fechaLejana", "value": "2026-12-15", "type": "string" },
+    { "key": "fechaFeriado", "value": "2026-11-23", "type": "string" },
+    { "key": "tokenTurista1", "value": "", "type": "string" },
+    { "key": "tokenTurista2", "value": "", "type": "string" },
+    { "key": "tokenPrestador1", "value": "", "type": "string" },
+    { "key": "tokenPrestador2", "value": "", "type": "string" },
+    { "key": "tokenAdmin", "value": "", "type": "string" },
+    { "key": "nuevoPrestadorId", "value": "1", "type": "string" },
+    { "key": "nuevaActividadId", "value": "1", "type": "string" },
+    { "key": "reservaConfirmadaId", "value": "1", "type": "string" },
+    { "key": "reservaPendienteId", "value": "2", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticacion OIDC en Keycloak (Tokens JWT)",
+      "description": "Obtiene los tokens JWT desde Keycloak (puerto 8180) para cada uno de los actores del dominio y los guarda automaticamente en variables de entorno/coleccion.",
+      "item": [
+        {
+          "name": "1.1 Login Turista 1 (turista1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso (200 OK)', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenTurista1', json.access_token);",
+                  "pm.environment.set('tokenTurista1', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "turismo-api", "type": "text" },
+                { "key": "username", "value": "turista1", "type": "text" },
+                { "key": "password", "value": "turista1", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/turismo/protocol/openid-connect/token",
+              "host": [ "{{keycloakUrl}}" ],
+              "path": [ "realms", "turismo", "protocol", "openid-connect", "token" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Login Turista 2 (turista2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso (200 OK)', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenTurista2', json.access_token);",
+                  "pm.environment.set('tokenTurista2', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "turismo-api", "type": "text" },
+                { "key": "username", "value": "turista2", "type": "text" },
+                { "key": "password", "value": "turista2", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/turismo/protocol/openid-connect/token",
+              "host": [ "{{keycloakUrl}}" ],
+              "path": [ "realms", "turismo", "protocol", "openid-connect", "token" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Login Prestador 1 (prestador1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso (200 OK)', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenPrestador1', json.access_token);",
+                  "pm.environment.set('tokenPrestador1', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "turismo-api", "type": "text" },
+                { "key": "username", "value": "prestador1", "type": "text" },
+                { "key": "password", "value": "prestador1", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/turismo/protocol/openid-connect/token",
+              "host": [ "{{keycloakUrl}}" ],
+              "path": [ "realms", "turismo", "protocol", "openid-connect", "token" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Login Prestador 2 (prestador2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso (200 OK)', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenPrestador2', json.access_token);",
+                  "pm.environment.set('tokenPrestador2', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "turismo-api", "type": "text" },
+                { "key": "username", "value": "prestador2", "type": "text" },
+                { "key": "password", "value": "prestador2", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/turismo/protocol/openid-connect/token",
+              "host": [ "{{keycloakUrl}}" ],
+              "path": [ "realms", "turismo", "protocol", "openid-connect", "token" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 Login Administrador (admin1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso (200 OK)', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenAdmin', json.access_token);",
+                  "pm.environment.set('tokenAdmin', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "turismo-api", "type": "text" },
+                { "key": "username", "value": "admin1", "type": "text" },
+                { "key": "password", "value": "admin1", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/turismo/protocol/openid-connect/token",
+              "host": [ "{{keycloakUrl}}" ],
+              "path": [ "realms", "turismo", "protocol", "openid-connect", "token" ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Catalogo Publico y Gestion por Prestador",
+      "description": "Verifica las consultas publicas del catalogo (sin token) y el alta de prestadores y actividades con geocodificacion automatica a traves del API Gateway.",
+      "item": [
+        {
+          "name": "2.1 [Publico] Listar Prestadores precargados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK sin necesidad de token', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Trae los prestadores precargados', function () { pm.expect(pm.response.json().length).to.be.above(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/prestadores",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "prestadores" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 [Publico] Listar Actividades precargadas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK sin necesidad de token', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Trae las 3 actividades precargadas', function () { pm.expect(pm.response.json().length).to.be.at.least(3); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 [Publico] Consultar Disponibilidad Diaria de Actividad 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Informa cupoMaximo, ocupados y libres', function () { pm.expect(json).to.have.property('libres'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/1/disponibilidad?fecha={{fechaCercana}}",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "1", "disponibilidad" ],
+              "query": [
+                { "key": "fecha", "value": "{{fechaCercana}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 [Prestador 1] Crear nuevo Prestador (queda como dueno)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('El dueno asignado es prestador1 (extraido del JWT)', function () { pm.expect(json.usuario).to.eql('prestador1'); });",
+                  "if (json && json.id) {",
+                  "    pm.collectionVariables.set('nuevoPrestadorId', String(json.id));",
+                  "    pm.environment.set('nuevoPrestadorId', String(json.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenPrestador1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Altas Cumbres Expediciones\",\n  \"contacto\": \"contacto@altascumbres.com.ar\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/prestadores",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "prestadores" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 [Prestador 1] Crear Actividad por Localidad (Prueba Geocodificacion Open-Meteo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Geocodificacion completo latitud y longitud', function () {",
+                  "    pm.expect(json.latitud).to.not.be.null;",
+                  "    pm.expect(json.longitud).to.not.be.null;",
+                  "});",
+                  "if (json && json.id) {",
+                  "    pm.collectionVariables.set('nuevaActividadId', String(json.id));",
+                  "    pm.environment.set('nuevaActividadId', String(json.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenPrestador1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Senderismo La Cumbrecita\",\n  \"prestadorId\": 1,\n  \"localidad\": \"Villa General Belgrano\",\n  \"cupoMaximo\": 12,\n  \"cupoMinimo\": 3,\n  \"precio\": 42000,\n  \"horaInicio\": \"09:00\",\n  \"duracionHoras\": 5,\n  \"edadMinima\": 10,\n  \"temporadaDesdeMes\": 9,\n  \"temporadaHastaMes\": 5,\n  \"operaFeriados\": true,\n  \"recargoFeriadoPct\": 20,\n  \"aireLibre\": true,\n  \"maxProbLluvia\": 50,\n  \"maxVientoKmh\": 50,\n  \"maxAqi\": 150\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades" ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Flujo Central del MVP: Creacion de Reservas (NEG-01)",
+      "description": "Demuestra el proceso de negocio central atravesando API Gateway -> Reservas -> APIs Externas -> Keycloak (Client Credentials) -> Actividades.",
+      "item": [
+        {
+          "name": "3.1 [Turista 1] Reservar Actividad 1 (Aire Libre) en fecha cercana -> Evalua Clima en Vivo (201 o 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "var json = pm.response.json();",
+                  "pm.test('Evaluacion climatica en vivo correcta (201 CONFIRMADA si buen clima / 409 Clima desfavorable si lluvia > 40%)', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "    if (code === 201) {",
+                  "        pm.expect(json.estado).to.eql('CONFIRMADA');",
+                  "        pm.expect(json.usuario).to.eql('turista1');",
+                  "    } else {",
+                  "        pm.expect(json.status).to.eql(409);",
+                  "        pm.expect(json.error).to.eql('Clima desfavorable');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 22,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 [Turista 1] Reservar Actividad 2 (Bajo Techo) en fecha cercana -> 201 CONFIRMADA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reserva creada (201 Created)', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Queda CONFIRMADA y con usuario turista1 extraido del token', function () {",
+                  "    pm.expect(json.usuario).to.eql('turista1');",
+                  "    pm.expect(json.estado).to.eql('CONFIRMADA');",
+                  "});",
+                  "if (json && json.id) {",
+                  "    pm.collectionVariables.set('reservaConfirmadaId', String(json.id));",
+                  "    pm.environment.set('reservaConfirmadaId', String(json.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 2,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 22,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 [Publico] Verificar descuento de cupo en Actividades para esa fecha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Cupo ocupado se incremento en esa fecha', function () { pm.expect(json.ocupados).to.be.at.least(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/2/disponibilidad?fecha={{fechaCercana}}",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "2", "disponibilidad" ],
+              "query": [
+                { "key": "fecha", "value": "{{fechaCercana}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 [Turista 1] Reservar Actividad 1 en fecha lejana (> 15 dias) -> PENDIENTE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reserva creada (201 Created)', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Queda en estado PENDIENTE por falta de pronostico a largo plazo', function () { pm.expect(json.estado).to.eql('PENDIENTE'); });",
+                  "if (json && json.id) {",
+                  "    pm.collectionVariables.set('reservaPendienteId', String(json.id));",
+                  "    pm.environment.set('reservaPendienteId', String(json.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaLejana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 25,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 [Turista 1] Reservar en Feriado Nacional (Prueba API Feriados y Recargo +20%)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Calcula precioTotal con recargo de feriado (2 x 45000 + 20% = 108000)', function () { pm.expect(json.precioTotal).to.eql(108000.00); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaFeriado}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 30,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.6 [Turista 1] Listar MIS Reservas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Devuelve lista de reservas de turista1', function () { pm.expect(pm.response.json().length).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Reglas de Negocio y Rechazos Controlados (NEG-02)",
+      "description": "Comprueba todas las validaciones de dominio y condiciones externas que rechazan la operacion con formato uniforme ErrorResponse (409, 404, 400).",
+      "item": [
+        {
+          "name": "4.1 [409 Clima Desfavorable en Vivo] Reservar Actividad 3 (Umbral Lluvia/Viento 0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada por clima desfavorable (409 Conflict)', function () { pm.response.to.have.status(409); });",
+                  "pm.test('Formato ErrorResponse con detalle del clima', function () { pm.expect(pm.response.json().status).to.eql(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 3,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 20,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 [409 Fuera de Temporada] Reservar Actividad 1 en Invierno (Mes 7)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada por fuera de temporada (409 Conflict)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"2027-07-15\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 25,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 [409 Edad Minima] Participante de 8 anos en Actividad con minima de 12",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada por edad minima no cumplida (409 Conflict)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 8,\n  \"adultos\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 [409 Menores sin Adulto] Menor de 15 anos sin adultos acompanantes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada por menores sin adulto acompanante (409 Conflict)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 15,\n  \"adultos\": 0\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 [409 Feriado No Laborable] Reservar Actividad 2 (no opera feriados) en feriado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada porque la actividad 2 no opera en feriados (409 Conflict)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 2,\n  \"fecha\": \"{{fechaFeriado}}\",\n  \"cantidadPersonas\": 2,\n  \"edadMenor\": 25,\n  \"adultos\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 [409 Capacidad Superada] Pedir 25 lugares en Actividad con cupoMaximo 10",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada por superar capacidad maxima (409 Conflict)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 25,\n  \"edadMenor\": 25,\n  \"adultos\": 25\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.7 [404 No Encontrada] Consultar Actividad inexistente (Formato comun)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found con ErrorResponse comun', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.expect(pm.response.json().status).to.eql(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/99999",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "99999" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.8 [400 Datos Invalidos] Crear Reserva con cantidadPersonas = 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request por @Valid', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().status).to.eql(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actividadId\": 1,\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidadPersonas\": 0,\n  \"edadMenor\": 20,\n  \"adultos\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Seguridad, Roles y Propiedad de Recursos (SEG-01)",
+      "description": "Demuestra los 3 niveles de seguridad: autenticacion JWT (401), autorizacion por rol en Gateway y microservicios (403), y propiedad del recurso en el dominio (403).",
+      "item": [
+        {
+          "name": "5.1 [401 Sin Token] Intentar consultar reservas sin autenticarse",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado en el Gateway con 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().status).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 [403 Rol Insuficiente] Turista intenta crear una Actividad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado con 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "    pm.expect(pm.response.json().status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Intento Ilegal\",\n  \"prestadorId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 [403 Endpoint Interno] Turista intenta modificar el cupo directamente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado con 403 Forbidden (solo rol SERVICIO o ADMIN)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaCercana}}\",\n  \"cantidad\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/1/cupo",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "1", "cupo" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 [403 Propiedad de Reserva] Turista 2 intenta acceder a la reserva de Turista 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado con 403 Forbidden porque la reserva pertenece a turista1', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista2}}", "type": "string" } ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas/{{reservaConfirmadaId}}",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas", "{{reservaConfirmadaId}}" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 [403 Propiedad de Prestador] Prestador 1 intenta dar de baja Actividad 3 (de Prestador 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado con 403 Forbidden porque el prestador 2 pertenece a prestador2', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenPrestador1}}", "type": "string" } ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/3",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "3" ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Ciclo de Vida: Reprogramacion, Reevaluacion y Cancelacion",
+      "description": "Demuestra la reprogramacion segura de fecha, la reevaluacion individual/masiva y la cancelacion con devolucion de cupo y calculo de reintegro.",
+      "item": [
+        {
+          "name": "6.1 [Turista 1] Reprogramar Reserva a nueva fecha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Fecha actualizada correctamente', function () { pm.expect(json.fecha).to.eql(pm.variables.get('fechaReprogramada')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaReprogramada}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas/{{reservaConfirmadaId}}/reprogramar",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas", "{{reservaConfirmadaId}}", "reprogramar" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 [Turista 1] Reevaluar Reserva individualmente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas/{{reservaConfirmadaId}}/reevaluar",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas", "{{reservaConfirmadaId}}", "reevaluar" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 [Admin 1] Disparar Reevaluacion Global de salidas proximas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Devuelve resumen {revisadas, cambiadas, errores}', function () { pm.expect(json).to.have.property('revisadas'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenAdmin}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas/reevaluacion",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas", "reevaluacion" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 [Turista 1] Cancelar Reserva (devuelve cupo y calcula reintegro)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Estado pasa a CANCELADA con porcentaje y monto de reintegro', function () {",
+                  "    pm.expect(json.estado).to.eql('CANCELADA');",
+                  "    pm.expect(json.porcentajeReintegro).to.not.be.null;",
+                  "    pm.expect(json.montoReintegro).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{tokenTurista1}}", "type": "string" } ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/reservas/{{reservaConfirmadaId}}/cancelar",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "reservas", "{{reservaConfirmadaId}}", "cancelar" ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.5 [Publico] Verificar que el cupo volvio a quedar libre tras cancelar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Los 15 lugares volvieron a quedar libres', function () { pm.expect(json.libres).to.eql(15); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actividades/2/disponibilidad?fecha={{fechaReprogramada}}",
+              "host": [ "{{gatewayUrl}}" ],
+              "path": [ "actividades", "2", "disponibilidad" ],
+              "query": [
+                { "key": "fecha", "value": "{{fechaReprogramada}}" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,19 +1,120 @@
-# Infraestructura del TPI. Por ahora solo Keycloak (Identity Provider).
-# Más adelante se agregan: PostgreSQL, API Gateway y los microservicios (despliegue integral).
+# ==========================================================================================
+# DESPLIEGUE INTEGRAL DEL TPI BACKEND 2026 — DOMINIO 5 (TURISMO Y EXCURSIONES)
+# ==========================================================================================
+# Levanta toda la solución con un solo comando:
+#   docker compose up -d --build
 #
-#   docker compose up -d          # levanta Keycloak en http://localhost:8180
-#   docker compose logs -f keycloak
-#
-# Consola de administración: http://localhost:8180  (admin / admin)
-# El realm "turismo" se importa solo la primera vez desde ./keycloak/turismo-realm.json
+# Componentes desplegados:
+#   - postgres     (5432) : DBMS relacional con dos bases separadas (actividadesdb y reservasdb)
+#   - keycloak     (8180) : Identity Provider OIDC/JWT con el realm "turismo" preimportado
+#   - actividades  (8081) : Microservicio funcional dueño del catálogo, prestadores y cupo diario
+#   - reservas     (8082) : Microservicio funcional orquestador de reservas y 3 APIs externas
+#   - api-gateway  (8080) : Punto único de entrada al backend (Routing + Security Filter JWT)
+# ==========================================================================================
+
 services:
+
+  # 1. Base de datos relacional (PostgreSQL 16)
+  postgres:
+    image: postgres:16-alpine
+    container_name: tpi-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-turismo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-turismo}
+      POSTGRES_DB: actividadesdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turismo -d actividadesdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 2. Identity Provider (Keycloak 26)
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command: start-dev --import-realm        # start-dev: modo desarrollo (HTTP, base H2 interna)
+    container_name: tpi-keycloak
+    command: start-dev --import-realm
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin     # administrador de la consola de Keycloak
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      # Asegura que el claim "iss" sea siempre http://localhost:8180/realms/turismo tanto desde Postman como entre contenedores
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     ports:
-      - "8180:8080"                          # 8180 en tu máquina; el 8080 queda libre para el API Gateway
+      - "8180:8080"
     volumes:
-      - ./keycloak:/opt/keycloak/data/import:ro   # carpeta con el realm a importar
+      - ./keycloak:/opt/keycloak/data/import:ro
+
+  # 3. Microservicio Funcional de Actividades (Catálogo, Prestadores y Cupo por Día)
+  actividades:
+    build:
+      context: .
+      dockerfile: actividadSpring/Dockerfile
+    container_name: tpi-actividades
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/actividadesdb
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-turismo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-turismo}
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/turismo
+      KEYCLOAK_JWK_URI: http://keycloak:8080/realms/turismo/protocol/openid-connect/certs
+      ACTIVIDADES_SEED_ENABLED: "true"
+    ports:
+      - "8081:8081"
+
+  # 4. Microservicio Funcional de Reservas (Orquestador + Clima, Aire y Feriados)
+  reservas:
+    build:
+      context: .
+      dockerfile: ReservaSpring/Dockerfile
+    container_name: tpi-reservas
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      actividades:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reservasdb
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-turismo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-turismo}
+      ACTIVIDADES_URL: http://actividades:8081
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/turismo
+      KEYCLOAK_JWK_URI: http://keycloak:8080/realms/turismo/protocol/openid-connect/certs
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/turismo/protocol/openid-connect/token
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-reservas-secret}
+    ports:
+      - "8082:8082"
+
+  # 5. API Gateway + Security Filter (Punto único de entrada al Backend)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: tpi-api-gateway
+    depends_on:
+      keycloak:
+        condition: service_started
+      actividades:
+        condition: service_started
+      reservas:
+        condition: service_started
+    environment:
+      ACTIVIDADES_URL: http://actividades:8081
+      RESERVAS_URL: http://reservas:8082
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/turismo
+      KEYCLOAK_JWK_URI: http://keycloak:8080/realms/turismo/protocol/openid-connect/certs
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
