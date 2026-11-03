@@ -1,0 +1,78 @@
+{
+  "realm": "turismo",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "admin",     "description": "Administra toda la plataforma" },
+      { "name": "prestador", "description": "Prestador turístico: gestiona SUS actividades" },
+      { "name": "turista",   "description": "Turista: reserva y gestiona SUS reservas" },
+      { "name": "servicio",  "description": "Cuenta técnica: llamadas entre microservicios (cupo)" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "turismo-api",
+      "name": "Cliente de la plataforma (frontend / Postman)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    },
+    {
+      "clientId": "reservas-service",
+      "name": "Microservicio de Reservas (cuenta de servicio)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "reservas-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "admin1", "enabled": true, "emailVerified": true,
+      "firstName": "Ada", "lastName": "Admin", "email": "admin1@turismo.test",
+      "credentials": [ { "type": "password", "value": "admin1", "temporary": false } ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "prestador1", "enabled": true, "emailVerified": true,
+      "firstName": "Pablo", "lastName": "Prestador", "email": "prestador1@turismo.test",
+      "credentials": [ { "type": "password", "value": "prestador1", "temporary": false } ],
+      "realmRoles": ["prestador"]
+    },
+    {
+      "username": "prestador2", "enabled": true, "emailVerified": true,
+      "firstName": "Paula", "lastName": "Prestadora", "email": "prestador2@turismo.test",
+      "credentials": [ { "type": "password", "value": "prestador2", "temporary": false } ],
+      "realmRoles": ["prestador"]
+    },
+    {
+      "username": "turista1", "enabled": true, "emailVerified": true,
+      "firstName": "Tomás", "lastName": "Turista", "email": "turista1@turismo.test",
+      "credentials": [ { "type": "password", "value": "turista1", "temporary": false } ],
+      "realmRoles": ["turista"]
+    },
+    {
+      "username": "turista2", "enabled": true, "emailVerified": true,
+      "firstName": "Teresa", "lastName": "Turista", "email": "turista2@turismo.test",
+      "credentials": [ { "type": "password", "value": "turista2", "temporary": false } ],
+      "realmRoles": ["turista"]
+    },
+    {
+      "username": "service-account-reservas-service", "enabled": true,
+      "serviceAccountClientId": "reservas-service",
+      "realmRoles": ["servicio"]
+    }
+  ]
+}

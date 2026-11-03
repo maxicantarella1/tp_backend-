@@ -14,11 +14,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!-- CAMBIO: antes importaba Spring Boot 2.5.6 (javax.*) mientras los microservicios usan 3.2.5 (jakarta.*).
-         Ahora ambos usan 3.2.5 para que la librería y los servicios sean compatibles. -->
+    <!-- Importa el BOM de Spring Boot 3.2.5 (solo fija VERSIONES; no agrega dependencias por sí solo).
+         Antes se importaba Boot 2.5.6 (javax.*) mientras los microservicios usan 3.2.5 (jakarta.*). -->
     <dependencyManagement>
-        <!-- provided: la librería NO arrastra Spring; usa el que ya trae el microservicio que la consume -->
-    <dependencies>
+        <dependencies>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -29,11 +28,18 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- "provided": la librería NO arrastra Spring; usa el que ya trae el microservicio que la consume. -->
     <dependencies>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Spring Security + validación de JWT: hace falta para compilar KeycloakJwtConverter,
+             Seguridad y ErroresSeguridad. Cada microservicio ya lo trae como resource server. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
             <scope>provided</scope>
         </dependency>
     </dependencies>
