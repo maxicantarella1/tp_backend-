@@ -23,21 +23,35 @@ public class ManejadorErroresComun {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<ErrorResponse> noEncontrado(RecursoNoEncontradoException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of(HttpStatus.NOT_FOUND, e.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.NOT_FOUND, e.getTitulo(), e.getMessage()));
     }
 
     /** Cualquier subclase de ConflictoNegocioException (sin cupo, clima...) -> 409. */
     @ExceptionHandler(ConflictoNegocioException.class)
     public ResponseEntity<ErrorResponse> conflicto(ConflictoNegocioException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of(HttpStatus.CONFLICT, e.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.CONFLICT, e.getTitulo(), e.getMessage()));
+    }
+
+    /** Datos de la petición sin sentido para el negocio -> 400. */
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ResponseEntity<ErrorResponse> solicitudInvalida(SolicitudInvalidaException e) {
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, e.getTitulo(), e.getMessage()));
+    }
+
+    /** Usuario autenticado pero sin derecho sobre ese recurso (regla de propiedad) -> 403. */
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ResponseEntity<ErrorResponse> accesoDenegado(AccesoDenegadoException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.of(HttpStatus.FORBIDDEN, e.getTitulo(), e.getMessage()));
     }
 
     /** Un servicio del que dependemos no responde -> 503. */
     @ExceptionHandler(ServicioNoDisponibleException.class)
     public ResponseEntity<ErrorResponse> noDisponible(ServicioNoDisponibleException e) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ErrorResponse.of(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.SERVICE_UNAVAILABLE, e.getTitulo(), e.getMessage()));
     }
 
     /**

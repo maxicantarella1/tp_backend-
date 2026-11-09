@@ -1,6 +1,9 @@
 package com.actividades.actividadSpring;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
-/** Cuerpo del PATCH de cupo: { "cantidad": 3 }. @Min(1): no se puede pedir 0 ni negativos. */
-public record CupoRequest(@Min(1) int cantidad) { }
+import java.time.LocalDate;
+
+/** Cuerpo de los PATCH de cupo: { "fecha": "2026-11-10", "cantidad": 3 }. */
+public record CupoRequest(@NotNull LocalDate fecha, @Min(1) int cantidad) { }

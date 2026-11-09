@@ -143,3 +143,29 @@ modificación de datos: se modelan como comandos sobre el recurso.
 **Limitaciones conocidas (decirlas suma):** sin Circuit Breaker ni reintentos (se pueden sumar con Resilience4j); el programador corre en cada
 instancia (con varias réplicas haría falta ShedLock); caché en memoria (se pierde al reiniciar); la API gratuita de Open-Meteo es para uso no comercial; aún
 falta seguridad (Keycloak/Gateway) y Docker; los feriados se asumen en horario local sin discriminar provincias.
+
+## 6. Títulos de error por regla (campo `error` de la respuesta)
+Cada regla devuelve su propio título en `error` (además del `status` numérico y el `mensaje` explicativo), así se ve QUÉ regla falló sin leer el texto:
+`{"status":409,"error":"Fuera de temporada","mensaje":"La actividad solo se realiza entre los meses 10 y 3 ...","timestamp":"..."}`
+
+| Regla | `error` |
+|---|---|
+| R1 actividad dada de baja | Actividad dada de baja |
+| R2 temporada | Fuera de temporada |
+| R3 capacidad del grupo | Capacidad máxima excedida |
+| R4 edad mínima | Edad mínima no cumplida |
+| R5 adultos > personas | Cantidad de adultos inválida |
+| R5 menor sin adulto | Menores sin adulto acompañante |
+| Feriado | Actividad no opera en feriados |
+| Clima / aire | Clima desfavorable |
+| Cupo por fecha (Actividades) | Cupo insuficiente · Sin cupo disponible (lo ve Reservas) |
+| Cancelar dos veces / ya realizada | Reserva ya cancelada · Actividad ya realizada |
+| Reevaluar | Reserva cancelada · Fecha pasada |
+| Reprogramar | Reprogramación sin cambios · Reprogramación fuera de plazo |
+| Cupo mínimo > máximo / sin ubicación / localidad inexistente | Cupo mínimo inválido · Ubicación faltante · Localidad no encontrada |
+| Propiedad | Reserva ajena · Prestador ajeno |
+| 404 | Reserva / Actividad / Prestador no encontrado/a |
+
+**Cómo defenderlo:** el código HTTP (409) dice la *clase* de error (conflicto con el estado del negocio); el título dice *cuál* regla. Se implementó con un
+segundo parámetro `titulo` en las excepciones de common-lib y el `@RestControllerAdvice` común lo copia a `error`. Los 3 niveles (status, título, mensaje) permiten
+que un cliente muestre un mensaje propio según el título sin parsear texto.

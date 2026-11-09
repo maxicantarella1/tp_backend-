@@ -1,17 +1,27 @@
 package com.actividades.actividadSpring;
 
+import com.turismo.common.Seguridad;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
- * API REST de actividades. Verbos y códigos HTTP:
- *   GET    -> leer (200)        POST -> crear (201)
- *   DELETE -> borrar (204)      PATCH -> modificar solo una parte (el cupo)
- * @Valid dispara las validaciones; si fallan, el manejador común responde 400.
- * Errores de negocio (404, 409) los traduce el manejador común de common-lib.
+ * API REST de actividades. Solo traduce HTTP <-> service; las reglas están en ActividadService.
+ *   GET    /actividades                          -> listar                                  [público]
+ *   GET    /actividades/{id}                     -> detalle (404 si no existe)              [público]
+ *   GET    /actividades/{id}/disponibilidad?fecha=  -> cupo de un día                       [público]
+ *   POST   /actividades                          -> crear (201)         [admin, o prestador DUEÑO]
+ *   DELETE /actividades/{id}                     -> baja lógica (204)   [admin, o prestador DUEÑO]
+ *   PATCH  /actividades/{id}/cupo                -> descontar cupo -> 409 si no alcanza     [servicio, admin]
+ *   PATCH  /actividades/{id}/cupo/devolucion     -> devolver cupo (compensación)            [servicio, admin]
+ * El cupo solo lo modifica la CUENTA DE SERVICIO de Reservas: un turista no puede "regalarse" lugares.
+ * Los errores (404, 409, 400) los traduce el manejador común de common-lib.
  */
 @RestController
 @RequestMapping("/actividades")
@@ -25,40 +35,47 @@ public class ActividadController {
         this.service = service;
     }
 
-    /** GET /actividades -> todas. */
     @GetMapping
     public List<Actividad> listar() {
         return repo.findAll();
     }
 
-    /** GET /actividades/{id} -> una, o 404 si no existe. */
     @GetMapping("/{id}")
     public Actividad obtener(@PathVariable Long id) {
-        return repo.findById(id)
-                .orElseThrow(() -> new ActividadNoEncontradaException(id));
+        return service.obtener(id);
     }
 
-    /** POST /actividades -> crea una nueva. Responde 201. */
+    /** @Valid aplica las validaciones de la entidad (rangos de mes, % de lluvia, etc.). */
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)          // 201
-    public Actividad crear(@Valid @RequestBody Actividad a) {
-        return repo.save(a);
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','PRESTADOR')")
+    public Actividad crear(@Valid @RequestBody Actividad a, Authentication auth) {
+        return service.crear(a, Seguridad.usuario(auth), Seguridad.tieneRol(auth, "admin"));
     }
 
-    /** DELETE /actividades/{id} -> borra. Responde 204 (sin cuerpo). */
+    /** CAMBIO: antes borraba la fila (deleteById). Ahora es baja lógica para no dejar reservas huérfanas. */
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)       // 204
-    public void borrar(@PathVariable Long id) {
-        repo.deleteById(id);
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN','PRESTADOR')")
+    public void darDeBaja(@PathVariable Long id, Authentication auth) {
+        service.darDeBaja(id, Seguridad.usuario(auth), Seguridad.tieneRol(auth, "admin"));
     }
 
-    /**
-     * PATCH /actividades/{id}/cupo  con { "cantidad": N }
-     * CAMBIO RESPECTO AL ORIGINAL: este endpoint FALTABA y Reservas lo invoca para reservar.
-     * Lo llama el servicio de Reservas; responde 409 si no alcanza el cupo.
-     */
+    @GetMapping("/{id}/disponibilidad")
+    public CupoResponse disponibilidad(@PathVariable Long id,
+                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        return service.disponibilidad(id, fecha);
+    }
+
     @PatchMapping("/{id}/cupo")
-    public Actividad descontarCupo(@PathVariable Long id, @Valid @RequestBody CupoRequest req) {
-        return service.descontarCupo(id, req.cantidad());
+    @PreAuthorize("hasAnyRole('SERVICIO','ADMIN')")
+    public CupoResponse descontarCupo(@PathVariable Long id, @Valid @RequestBody CupoRequest req) {
+        return service.descontarCupo(id, req.fecha(), req.cantidad());
+    }
+
+    @PatchMapping("/{id}/cupo/devolucion")
+    @PreAuthorize("hasAnyRole('SERVICIO','ADMIN')")
+    public CupoResponse devolverCupo(@PathVariable Long id, @Valid @RequestBody CupoRequest req) {
+        return service.devolverCupo(id, req.fecha(), req.cantidad());
     }
 }

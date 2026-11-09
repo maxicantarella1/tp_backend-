@@ -6,5 +6,14 @@ package com.turismo.common;
  * Los servicios crean subclases (CupoAgotadoException, CupoInsuficienteException).
  */
 public class ConflictoNegocioException extends RuntimeException {
-    public ConflictoNegocioException(String mensaje) { super(mensaje); }
+    /** Título corto del error: va en el campo "error" de la respuesta JSON (en vez del texto genérico del HTTP). */
+    private final String titulo;
+
+    /** Con título por defecto ("Regla de negocio incumplida"). */
+    public ConflictoNegocioException(String mensaje) { this("Regla de negocio incumplida", mensaje); }
+
+    /** Con un título propio de la regla (ej: "Fuera de temporada"). */
+    public ConflictoNegocioException(String titulo, String mensaje) { super(mensaje); this.titulo = titulo; }
+
+    public String getTitulo() { return titulo; }
 }

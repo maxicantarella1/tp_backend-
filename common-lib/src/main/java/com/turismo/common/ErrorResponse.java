@@ -13,6 +13,11 @@ import java.time.LocalDateTime;
 public record ErrorResponse(int status, String error, String mensaje, LocalDateTime timestamp) {
 
     /** Atajo para armar el error a partir de un código HTTP y un mensaje. */
+    /** Con título propio de la regla: el campo "error" lo muestra en lugar del texto genérico del HTTP. */
+    public static ErrorResponse of(HttpStatus status, String titulo, String mensaje) {
+        return new ErrorResponse(status.value(), titulo, mensaje, LocalDateTime.now());
+    }
+
     public static ErrorResponse of(HttpStatus status, String mensaje) {
         return new ErrorResponse(status.value(), status.getReasonPhrase(), mensaje, LocalDateTime.now());
     }

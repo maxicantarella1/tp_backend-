@@ -6,6 +6,9 @@ package com.turismo.common;
  * Uso: throw new ServicioNoDisponibleException("actividades-service");
  */
 public class ServicioNoDisponibleException extends RuntimeException {
+    /** Título corto del error (va en el campo "error" de la respuesta). */
+    public String getTitulo() { return "Servicio no disponible"; }
+
     public ServicioNoDisponibleException(String servicio) {
         super("El servicio " + servicio + " no está disponible, intente más tarde");
     }
